@@ -1,4 +1,5 @@
-﻿using Microsoft.ServiceFabric.Services.Remoting;
+﻿using Common.Models;
+using Microsoft.ServiceFabric.Services.Remoting;
 using System.ServiceModel;
 
 namespace Common.Interfaces
@@ -7,10 +8,8 @@ namespace Common.Interfaces
     public interface IArticleOperations : IService
     {
         [OperationContract]
-        bool Check();
+        Task<List<Article>> GetArticles(string category);
         [OperationContract]
-        void PutInChart();
-        [OperationContract]
-        void RemoveFromChart();
+        Task RemoveFromChart();
     }
 }

@@ -15,7 +15,7 @@ namespace Common.Interfaces
         [OperationContract]
         Task<Tuple<string, UserDTO?>> ModifyValidator(ModifyDTO user);
         [OperationContract]
-        Task<List<Article>> ArticleViewValidator();
+        Task<Tuple<string, List<Article>?>> ArticleViewValidator(UserDTO user, string category);
         [OperationContract]
         Task ChartViewValidator();
         [OperationContract]

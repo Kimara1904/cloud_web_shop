@@ -34,9 +34,46 @@ namespace Validator
             return "Everything is okay";
         }
 
-        public Task<List<Article>> ArticleViewValidator()
+        public async Task<Tuple<string, List<Article>?>> ArticleViewValidator(UserDTO user, string category)
         {
-            throw new NotImplementedException();
+            if (user == null)
+            {
+                return new Tuple<string, List<Article>?>("User must be logged in", null);
+            }
+
+            if (string.IsNullOrEmpty(category))
+            {
+                return new Tuple<string, List<Article>?>("Category is required", null);
+            }
+
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/ArticleService");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            IArticleOperations proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<IArticleOperations>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var articles = await proxy.GetArticles(category);
+                return new Tuple<string, List<Article>?>("Success", articles);
+            }
+            catch (Exception ex)
+            {
+                return new Tuple<string, List<Article>?>("Error in communication with service " + ex.Message, null);
+            }
         }
 
         public Task ChartViewValidator()

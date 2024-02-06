@@ -6,7 +6,7 @@ namespace Common.Models
     public class Article
     {
         [DataMember]
-        public int Id { get; set; }
+        public long Id { get; set; }
         [DataMember]
         public string Name { get; set; } = null!;
         [DataMember]

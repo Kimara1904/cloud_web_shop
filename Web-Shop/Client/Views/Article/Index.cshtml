@@ -4,10 +4,72 @@
 @{
 }
 
+@using Common.Models
+@model List<Article>
+
 <h1>Articles</h1>
 
 <a href="@Url.Action("Index", "User")">Modify User</a>
 <br />
 <a href="@Url.Action("Index", "Chart")">Chart</a>
 <br />
-<a href="@Url.Action("Logout", "Authentication")">Chart</a>
+<a href="@Url.Action("Logout", "Authentication")">Logout</a>
+
+<div>
+    <label for="categorySelector">Select Category:</label>
+    @Html.DropDownList("categorySelector", new SelectList(new[]
+    {
+    new SelectListItem { Value = "All", Text = "All" },
+    new SelectListItem { Value = "Dairy", Text = "Dairy" },
+    new SelectListItem { Value = "Fruits", Text = "Fruits" },
+    new SelectListItem { Value = "Bakery", Text = "Bakery" }
+    }, "Value", "Text", ViewBag.SelectedCategory), new { id = "categorySelector" })
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Amount</th>
+            <th />
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null)
+        {
+            @foreach (var article in Model)
+            {
+                <tr>
+                    <td>@article.Id</td>
+                    <td>@article.Name</td>
+                    <td>@article.Description</td>
+                    <td>@article.Category</td>
+                    <td>@article.Price</td>
+                    <td>@article.Amount</td>
+                    <td />
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7">@ViewBag.Error</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        $(function () {
+            $('#categorySelector').change(function () {
+                var selectedCategory = $(this).val();
+                window.location.href = '@Url.Action("Index", "Article")' + '?category=' + selectedCategory;
+            });
+        });
+    </script>
+}
