@@ -15,7 +15,7 @@ namespace Client.Controllers
 
         public IActionResult Index()
         {
-            return View();
+            return RedirectToAction("Index", "Authentication");
         }
 
         public IActionResult Privacy()

@@ -1,13 +1,10 @@
 ﻿using System.Runtime.Serialization;
 
-namespace Common.Models
+namespace Common.DTOs
 {
     [DataContract]
-    public class User
+    public class RegisterDTO
     {
-
-        [DataMember]
-        public long Id { get; set; }
         [DataMember]
         public string Username { get; set; } = null!;
         [DataMember]

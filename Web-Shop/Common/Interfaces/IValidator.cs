@@ -9,15 +9,15 @@ namespace Common.Interfaces
     public interface IValidator : IService
     {
         [OperationContract]
-        Task<string> LoginValidator(string username, string password);
+        Task<Tuple<string, UserDTO?>> LoginValidator(string username, string password);
         [OperationContract]
-        Task<string> RegisterValidator(UserDTO newUser);
+        Task<string> RegisterValidator(RegisterDTO newUser);
         [OperationContract]
-        Task<string> ModifyValidator(UserDTO user);
+        Task<Tuple<string, UserDTO?>> ModifyValidator(ModifyDTO user);
         [OperationContract]
         Task<List<Article>> ArticleViewValidator();
         [OperationContract]
-        void ChartViewValidator();
+        Task ChartViewValidator();
         [OperationContract]
         Task<string> AddInChartValidator(int id, int amount);
         [OperationContract]

@@ -1,16 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Fabric;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
-using Microsoft.ServiceFabric.Data;
+using System.Fabric;
 
 namespace Client
 {
@@ -47,7 +38,14 @@ namespace Client
                         
                         // Add services to the container.
                         builder.Services.AddControllersWithViews();
-                        
+
+                        builder.Services.AddSession(options =>
+                        {
+                            options.Cookie.HttpOnly = true;
+                            options.Cookie.IsEssential = true;
+                        });
+
+
                         var app = builder.Build();
                         
                         // Configure the HTTP request pipeline.
@@ -56,16 +54,18 @@ namespace Client
                         app.UseExceptionHandler("/Home/Error");
                         }
                         app.UseStaticFiles();
-                        
+
                         app.UseRouting();
-                        
+
                         app.UseAuthorization();
-                        
+
+                        app.UseSession();
+
                         app.MapControllerRoute(
                         name: "default",
                         pattern: "{controller=Home}/{action=Index}/{id?}");
-                        
-                        
+
+
                         return app;
 
                     }))

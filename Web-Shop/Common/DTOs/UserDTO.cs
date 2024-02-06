@@ -6,6 +6,8 @@ namespace Common.DTOs
     public class UserDTO
     {
         [DataMember]
+        public long Id { get; set; }
+        [DataMember]
         public string Username { get; set; } = null!;
         [DataMember]
         public string Password { get; set; } = null!;

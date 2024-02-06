@@ -1,0 +1,45 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+}
+
+<h1>Modify</h1>
+
+@using (Html.BeginForm("Modify", "User", FormMethod.Post))
+{
+
+    <label>Username</label>
+    <input type="text" name="username" value="@ViewBag.User.Username" />
+    <br />
+
+    <label>Password</label>
+    <input type="password" name="password" value="@ViewBag.User.Password" />
+    <br />
+
+    <label>Email</label>
+    <input type="email" name="email" value="@ViewBag.User.Email" />
+    <br />
+
+    <label>First name</label>
+    <input type="text" name="firstName" value="@ViewBag.User.FirstName" />
+    <br />
+
+    <label>Last name</label>
+    <input type="text" name="lastName" value="@ViewBag.User.LastName" />
+    <br />
+
+    <label>Birthday</label>
+    <input type="date" name="birthday" value="@(((DateTime)ViewBag.User.Birthday).ToString("yyyy-MM-dd"))" />
+    <br />
+
+    <label>Address</label>
+    <input type="text" name="address" value="@ViewBag.User.Address" />
+    <br />
+
+    <input type="submit" value="Modify" />
+}
+
+<a href="@Url.Action("Index", "Article")">Articles</a>
+<br />
+<label>@ViewBag.Result</label>

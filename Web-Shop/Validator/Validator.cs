@@ -1,7 +1,9 @@
 using Common.DTOs;
 using Common.Interfaces;
 using Common.Models;
+using Microsoft.ServiceFabric.Services.Client;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
+using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Microsoft.ServiceFabric.Services.Remoting.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using System.Fabric;
@@ -37,7 +39,7 @@ namespace Validator
             throw new NotImplementedException();
         }
 
-        public void ChartViewValidator()
+        public Task ChartViewValidator()
         {
             throw new NotImplementedException();
         }
@@ -52,62 +54,129 @@ namespace Validator
             return "Everything is okay";
         }
 
-        public async Task<string> LoginValidator(string username, string password)
+        public async Task<Tuple<string, UserDTO?>> LoginValidator(string username, string password)
         {
             if (string.IsNullOrEmpty(username))
             {
-                return "Username is required";
+                return new Tuple<string, UserDTO?>("Username is required", null);
             }
 
             if (string.IsNullOrEmpty(password))
             {
-                return "Password is required";
+                return new Tuple<string, UserDTO?>("Password is required", null);
             }
 
-            return "Everything is okay";
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/UserService");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            IUserService proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<IUserService>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var result = await proxy.GetUser(username, password);
+
+                if (result == null)
+                {
+                    return new Tuple<string, UserDTO?>("Wrong credentials", null);
+                }
+
+
+                return new Tuple<string, UserDTO?>("Successfully login", result);
+            }
+            catch (Exception ex)
+            {
+                return new Tuple<string, UserDTO?>("Error in communication with service " + ex.Message, null);
+            }
         }
 
-        public async Task<string> ModifyValidator(UserDTO user)
+        public async Task<Tuple<string, UserDTO?>> ModifyValidator(ModifyDTO user)
         {
             if (user == null)
             {
-                return "User infos are requested";
+                return new Tuple<string, UserDTO?>("User infos are requested", null);
+            }
+
+            if (user.Id == 0)
+            {
+                return new Tuple<string, UserDTO?>("User must be loged in", null);
             }
 
             if (string.IsNullOrEmpty(user.Username))
             {
-                return "Username is required";
+                return new Tuple<string, UserDTO?>("Username is required", null);
             }
 
             if (string.IsNullOrEmpty(user.Password))
             {
-                return "Password is required";
+                return new Tuple<string, UserDTO?>("Password is requested", null);
             }
 
             if (string.IsNullOrEmpty(user.Email))
             {
-                return "Email is required";
+                return new Tuple<string, UserDTO?>("Email is required", null);
             }
 
             if (string.IsNullOrEmpty(user.FirstName))
             {
-                return "First name is required";
+                return new Tuple<string, UserDTO?>("First name is required", null);
             }
 
             if (string.IsNullOrEmpty(user.LastName))
             {
-                return "Last name is required";
+                return new Tuple<string, UserDTO?>("Last name is required", null);
             }
 
             if (string.IsNullOrEmpty(user.Address))
             {
-                return "Address is required";
+                return new Tuple<string, UserDTO?>("Address is required", null);
             }
 
-            return "Everything is okay";
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/UserService");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            IUserService proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<IUserService>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var result = await proxy.ModifyUser(user);
+                return new Tuple<string, UserDTO?>(result.Item1, result.Item2);
+            }
+            catch (Exception ex)
+            {
+                return new Tuple<string, UserDTO?>("Error in communication with service " + ex.Message, null);
+            }
+
         }
 
-        public async Task<string> RegisterValidator(UserDTO newUser)
+        public async Task<string> RegisterValidator(RegisterDTO newUser)
         {
             if (newUser == null)
             {
@@ -144,7 +213,34 @@ namespace Validator
                 return "Address is required";
             }
 
-            return "Everything is okay";
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/UserService");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            IUserService proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<IUserService>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var result = await proxy.CreateUser(newUser);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return "Error in communication with service " + ex.Message;
+            }
         }
 
         public async Task<string> RemoveFromChartValidator(int id)
