@@ -20,7 +20,7 @@ namespace ArticleService
             : base(context)
         { }
 
-        private static async Task Initialize()
+        private async Task Initialize()
         {
             var articles = new List<Article>
             {
@@ -115,10 +115,25 @@ namespace ArticleService
 
             var operationData = new DataOperations<ArticleData>(articleClient);
 
+            var stateManager = this.StateManager;
+            var articleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("articleDictionary");
+
             var articleList = new List<ArticleData>();
+
+            using var transaction = stateManager.CreateTransaction();
             await foreach (var item in operationData.RetrieveAllAsync("Article"))
             {
                 articleList.Add(item);
+                var articleVal = new Article
+                {
+                    Id = item.Id,
+                    Name = item.Name,
+                    Description = item.Description,
+                    Category = item.Category,
+                    Amount = item.Amount,
+                    Price = item.Price
+                };
+                await articleDictionary.AddOrUpdateAsync(transaction, item.Id, articleVal, (k, v) => articleVal);
             }
 
             if (articleList.Count == 0)
@@ -126,8 +141,20 @@ namespace ArticleService
                 foreach (var item in articles)
                 {
                     await operationData.AddAsync(new ArticleData(item));
+
+                    var articleVal = new Article
+                    {
+                        Id = item.Id,
+                        Name = item.Name,
+                        Description = item.Description,
+                        Category = item.Category,
+                        Amount = item.Amount,
+                        Price = item.Price
+                    };
+                    await articleDictionary.AddOrUpdateAsync(transaction, item.Id, articleVal, (k, v) => articleVal);
                 }
             }
+            await transaction.CommitAsync();
         }
 
         private async Task UpdateState()
@@ -138,27 +165,19 @@ namespace ArticleService
 
             TableItem tableItem = await tableServiceClient.CreateTableIfNotExistsAsync("Article");
             TableClient articleClient = tableServiceClient.GetTableClient("Article");
+            var operationData = new DataOperations<ArticleData>(articleClient);
 
             var stateManager = this.StateManager;
             var articleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("articleDictionary");
 
             using var transaction = stateManager.CreateTransaction();
-            var operationData = new DataOperations<ArticleData>(articleClient);
+            var articleEnumerator = (await articleDictionary.CreateEnumerableAsync(transaction)).GetAsyncEnumerator();
 
-            await foreach (var article in operationData.RetrieveAllAsync("Article"))
+            while (await articleEnumerator.MoveNextAsync(CancellationToken.None))
             {
-                var articleVal = new Article
-                {
-                    Id = article.Id,
-                    Name = article.Name,
-                    Description = article.Description,
-                    Category = article.Category,
-                    Amount = article.Amount,
-                    Price = article.Price
-                };
-                await articleDictionary.AddOrUpdateAsync(transaction, article.Id, articleVal, (k, v) => articleVal);
+                var article = articleEnumerator.Current;
+                await operationData.Modify(new ArticleData(article.Value));
             }
-            await transaction.CommitAsync();
         }
 
         public async Task<List<Article>> GetArticles(string category)
@@ -183,10 +202,6 @@ namespace ArticleService
             return articles;
         }
 
-        public Task RemoveFromChart()
-        {
-            throw new NotImplementedException();
-        }
 
         /// <summary>
         /// Optional override to create listeners (e.g., HTTP, Service Remoting, WCF, etc.) for this service replica to handle client or user requests.
@@ -236,6 +251,77 @@ namespace ArticleService
 
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             }
+        }
+
+        public async Task<Tuple<bool, string>> CheckArticles(List<ChartItem> articles)
+        {
+            var stateManager = this.StateManager;
+            var articleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("articleDictionary");
+
+            using var transaction = stateManager.CreateTransaction();
+            var articleEnumerator = (await articleDictionary.CreateEnumerableAsync(transaction)).GetAsyncEnumerator();
+
+            while (await articleEnumerator.MoveNextAsync(CancellationToken.None))
+            {
+                var article = articleEnumerator.Current;
+                var chartItem = articles.FirstOrDefault(x => x.ArticleId == article.Value.Id);
+                if (chartItem != null && chartItem.Amount > article.Value.Amount)
+                {
+                    return new Tuple<bool, string>(false, $"There is no enough {chartItem.ArticleName}");
+                }
+            }
+
+            return new Tuple<bool, string>(true, "Everything is okay");
+        }
+
+        public async Task<string> PutInChart(List<ChartItem> articles)
+        {
+            var stateManager = this.StateManager;
+            var articleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("articleDictionary");
+            var pervArticleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("pervArticleDictionary");
+
+            using var transaction = stateManager.CreateTransaction();
+            var articleEnumerator = (await articleDictionary.CreateEnumerableAsync(transaction)).GetAsyncEnumerator();
+
+            while (await articleEnumerator.MoveNextAsync(CancellationToken.None))
+            {
+                var article = articleEnumerator.Current;
+                await pervArticleDictionary.AddAsync(transaction, article.Key, article.Value);
+                var chartItem = articles.FirstOrDefault(x => x.ArticleId == article.Value.Id);
+                if (chartItem != null)
+                {
+                    article.Value.Amount -= chartItem.Amount;
+                }
+            }
+
+            return "Successfully filled chart";
+        }
+
+        public async Task GetPerviousState()
+        {
+            var stateManager = this.StateManager;
+            var articleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("articleDictionary");
+            var prevArticleDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, Article>>("prevArticleDictionary");
+
+            using var transaction = stateManager.CreateTransaction();
+
+            if (await prevArticleDictionary.GetCountAsync(transaction) == 0)
+            {
+                return;
+            }
+
+            var enumerablePrev = await prevArticleDictionary.CreateEnumerableAsync(transaction);
+            var enumerator = enumerablePrev.GetAsyncEnumerator();
+
+            while (await enumerator.MoveNextAsync(CancellationToken.None))
+            {
+                var current = enumerator.Current;
+                await articleDictionary.AddOrUpdateAsync(transaction, current.Key, current.Value, (k, v) => current.Value);
+            }
+
+            await prevArticleDictionary.ClearAsync();
+
+            await transaction.CommitAsync();
         }
     }
 }

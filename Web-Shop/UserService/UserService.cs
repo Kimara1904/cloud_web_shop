@@ -22,7 +22,7 @@ namespace UserService
             : base(context)
         { }
 
-        private async Task UpdateState()
+        private async Task Initialize()
         {
             string connectionString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;";
 
@@ -31,11 +31,12 @@ namespace UserService
             TableItem tableItem = await tableServiceClient.CreateTableIfNotExistsAsync("User");
             TableClient userClient = tableServiceClient.GetTableClient("User");
 
+            var operationData = new DataOperations<UserData>(userClient);
+
             var stateManager = this.StateManager;
             var userDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, User>>("userDictionary");
 
             using var transaction = stateManager.CreateTransaction();
-            var operationData = new DataOperations<UserData>(userClient);
 
             await foreach (var user in operationData.RetrieveAllAsync("User"))
             {
@@ -53,6 +54,37 @@ namespace UserService
                 await userDictionary.AddOrUpdateAsync(transaction, user.Id, userVal, (k, v) => userVal);
             }
             await transaction.CommitAsync();
+        }
+
+        private async Task UpdateState()
+        {
+            string connectionString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;";
+
+            TableServiceClient tableServiceClient = new(connectionString);
+
+            TableItem tableItem = await tableServiceClient.CreateTableIfNotExistsAsync("User");
+            TableClient userClient = tableServiceClient.GetTableClient("User");
+            var operationData = new DataOperations<UserData>(userClient);
+
+            var stateManager = this.StateManager;
+            var userDictionary = await stateManager.GetOrAddAsync<IReliableDictionary<long, User>>("userDictionary");
+
+            using var transaction = stateManager.CreateTransaction();
+            var userEnumerator = (await userDictionary.CreateEnumerableAsync(transaction)).GetAsyncEnumerator();
+
+            while (await userEnumerator.MoveNextAsync(CancellationToken.None))
+            {
+                var user = userEnumerator.Current;
+                var userData = new UserData(user.Value);
+                if (await operationData.IsThere(userData.Id.ToString(), "User"))
+                {
+                    await operationData.Modify(userData);
+                }
+                else
+                {
+                    await operationData.AddAsync(userData);
+                }
+            }
         }
 
         public async Task<string> CreateUser(RegisterDTO userDTO)
@@ -73,16 +105,7 @@ namespace UserService
                 }
             }
 
-            string connectionString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;";
-
-            TableServiceClient tableServiceClient = new(connectionString);
-
-            TableItem tableItem = await tableServiceClient.CreateTableIfNotExistsAsync("User");
-            TableClient UserClient = tableServiceClient.GetTableClient("User");
-
-            var operationData = new DataOperations<UserData>(UserClient);
-
-            var newUser = new UserData(new User
+            var newUser = new User
             {
                 Username = userDTO.Username,
                 Password = userDTO.Password,
@@ -91,11 +114,14 @@ namespace UserService
                 LastName = userDTO.LastName,
                 Birthday = userDTO.Birthday,
                 Address = userDTO.Address
-            });
+            };
+
+            var userIdHelper = new UserData(newUser);
 
             try
             {
-                await operationData.AddAsync(newUser);
+                await userDictionary.AddOrUpdateAsync(transaction, userIdHelper.Id, newUser, (k, v) => newUser);
+                await transaction.CommitAsync();
                 return "Successfully created new user";
             }
             catch (Exception ex)
@@ -150,16 +176,7 @@ namespace UserService
                 return new Tuple<string, UserDTO?>($"There is no user with id: {userDTO.Id}", null);
             }
 
-            string connectionString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1;";
-
-            TableServiceClient tableServiceClient = new(connectionString);
-
-            TableItem tableItem = await tableServiceClient.CreateTableIfNotExistsAsync("User");
-            TableClient UserClient = tableServiceClient.GetTableClient("User");
-
-            var operationData = new DataOperations<UserData>(UserClient);
-
-            var newUserInfo = new UserData(new User
+            var newUserInfo = new User
             {
                 Id = userDTO.Id,
                 Username = userDTO.Username,
@@ -169,11 +186,12 @@ namespace UserService
                 LastName = userDTO.LastName,
                 Birthday = userDTO.Birthday,
                 Address = userDTO.Address
-            });
+            };
 
             try
             {
-                await operationData.Modify(newUserInfo);
+                await userDictionary.AddOrUpdateAsync(transaction, newUserInfo.Id, newUserInfo, (k, v) => newUserInfo);
+                await transaction.CommitAsync();
                 var returnUser = new UserDTO
                 {
                     Id = userDTO.Id,
@@ -215,6 +233,9 @@ namespace UserService
         {
             // TODO: Replace the following sample code with your own logic 
             //       or remove this RunAsync override if it's not needed in your service.
+
+            await Initialize();
+
             var myDictionary = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, long>>("myDictionary");
 
             while (true)

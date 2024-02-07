@@ -5,14 +5,12 @@ using System.ServiceModel;
 namespace Common.Interfaces
 {
     [ServiceContract]
-    public interface IArticleOperations : IService
+    public interface IChartOperations : IService
     {
         [OperationContract]
-        Task<List<Article>> GetArticles(string category);
+        Task<List<Chart>> GetCharts(long buyerId);
         [OperationContract]
-        Task<Tuple<bool, string>> CheckArticles(List<ChartItem> articles);
-        [OperationContract]
-        Task<string> PutInChart(List<ChartItem> articles);
+        Task<string> CheckOut(Chart newChart);
         [OperationContract]
         Task GetPerviousState();
     }
