@@ -1,5 +1,6 @@
 ﻿using Common.DTOs;
 using Common.Interfaces;
+using Common.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Newtonsoft.Json;
@@ -12,6 +13,7 @@ namespace Client.Controllers
         {
             UserDTO user = JsonConvert.DeserializeObject<UserDTO>(HttpContext.Session.GetString("CurrentUser")!)!;
             ViewBag.SelectedCategory = category;
+            ViewBag.Chart = JsonConvert.DeserializeObject<Chart>(HttpContext.Session.GetString("ActiveChart")!)!;
 
             var serviceUri = new Uri("fabric:/Web-Shop/Validator");
             IValidator proxy = ServiceProxy.Create<IValidator>(serviceUri);

@@ -3,6 +3,59 @@
 *@
 @{
 }
+@using Common.Models
+
+<h1>Chart</h1>
 
 <a href="@Url.Action("Index", "Article")">Articles</a>
+
+<p>Address: @ViewBag.Chart.Address</p>
+<p>Total Price: @ViewBag.Chart.TotalPrice</p>
+
+<p>Items: </p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Amount</th>
+            <th />
+        </tr>
+    </thead>
+    <tbody>
+        @if (((Chart)ViewBag.Chart).Items.Count != 0)
+        {
+            @foreach (var item in ((Chart)ViewBag.Chart).Items)
+            {
+                <tr>
+                    <td>@item.ArticleId</td>
+                    <td>@item.ArticleName</td>
+                    <td>@item.ArticlePrice</td>
+                    <td>
+                        @using (Html.BeginForm("ModifyAmount", "Chart", FormMethod.Post))
+                        {
+                            <input type="hidden" name="articleId" value="@item.ArticleId" />
+                            <input type="number" name="amount" min="1" value="@item.Amount" class="amount-input" onchange="this.form.submit()" />
+                        }
+                    </td>
+                    <td>
+                        @using (Html.BeginForm("DeleteArticle", "Chart", FormMethod.Post))
+                        {
+                            <input type="hidden" name="articleId" value="@item.ArticleId" />
+                            <button type="submit">Remove from Chart</button>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="5">"There is no article"</td>
+            </tr>
+        }
+    </tbody>
+</table>
 

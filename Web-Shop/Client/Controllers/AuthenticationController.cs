@@ -1,5 +1,6 @@
 ﻿using Common.DTOs;
 using Common.Interfaces;
+using Common.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Newtonsoft.Json;
@@ -23,9 +24,15 @@ namespace Client.Controllers
                 IValidator proxy = ServiceProxy.Create<IValidator>(serviceUri);
                 var result = await proxy.LoginValidator(username, password);
 
-                if (result.Item1.Equals("Successfully login"))
+                if (result.Item2 != null)
                 {
                     HttpContext.Session.SetString("CurrentUser", JsonConvert.SerializeObject(result.Item2));
+                    HttpContext.Session.SetString("ActiveChart", JsonConvert.SerializeObject(new Chart()
+                    {
+                        BuyerId = result.Item2.Id,
+                        Address = result.Item2.Address,
+                        Items = new List<ChartItem>()
+                    }));
                     return RedirectToAction("Index", "Article");
                 }
                 else

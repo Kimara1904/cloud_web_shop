@@ -33,7 +33,7 @@
             <th>Name</th>
             <th>Description</th>
             <th>Category</th>
-            <th>Price</th>
+            <th>Price $</th>
             <th>Amount</th>
             <th />
         </tr>
@@ -50,7 +50,25 @@
                     <td>@article.Category</td>
                     <td>@article.Price</td>
                     <td>@article.Amount</td>
-                    <td />
+                    <td>
+                        @using (Html.BeginForm("AddArticle", "Chart", FormMethod.Post))
+                        {
+                            <input type="hidden" name="ArticleId" value="@article.Id" />
+                            <input type="hidden" name="ArticleName" value="@article.Name" />
+                            <input type="hidden" name="ArticlePrice" value="@article.Price" />
+                            <input type="hidden" name="Amount" value="1" />
+                            <input type="hidden" name="category" value="@ViewBag.SelectedCategory" />
+
+                            @if (((Chart)ViewBag.Chart).Items.Any(item => item.ArticleId == article.Id) || article.Amount == 0)
+                            {
+                                <button type="submit" disabled>Add in Chart</button>
+                            }
+                            else
+                            {
+                                <button type="submit">Add in Chart</button>
+                            }
+                        }
+                    </td>
                 </tr>
             }
         }
