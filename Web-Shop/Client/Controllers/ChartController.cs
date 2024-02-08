@@ -127,6 +127,7 @@ namespace Client.Controllers
                 {
                     ViewBag.Error = result;
                 }
+                HttpContext.Session.Remove("ActiveChart");
                 return RedirectToAction("Index");
             }
             catch (Exception ex)
