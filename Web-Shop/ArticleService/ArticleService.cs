@@ -267,7 +267,7 @@ namespace ArticleService
                 var chartItem = articles.FirstOrDefault(x => x.ArticleId == article.Value.Id);
                 if (chartItem != null && chartItem.Amount > article.Value.Amount)
                 {
-                    return new Tuple<bool, string>(false, $"There is no enough {chartItem.ArticleName}");
+                    return new Tuple<bool, string>(false, $"There is no enough {article.Value.Name}");
                 }
             }
 

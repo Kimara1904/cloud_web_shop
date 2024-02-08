@@ -1,6 +1,9 @@
 using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
+using SoCreate.ServiceFabric.PubSub;
+using SoCreate.ServiceFabric.PubSub.State;
+using SoCreate.ServiceFabric.PubSub.Subscriber;
 using System.Fabric;
 
 namespace Client
@@ -8,11 +11,19 @@ namespace Client
     /// <summary>
     /// The FabricRuntime creates an instance of this class for each service type instance.
     /// </summary>
-    internal sealed class Client : StatelessService
+    internal sealed class Client : StatelessService, ISubscriberService
     {
-        public Client(StatelessServiceContext context)
+        private readonly IBrokerClient _brokerClient;
+        public Client(StatelessServiceContext context, IBrokerClient brokerClient)
             : base(context)
-        { }
+        {
+            _brokerClient = brokerClient;
+        }
+
+        public Task ReceiveMessageAsync(MessageWrapper message)
+        {
+            return _brokerClient.ProcessMessageAsync(message);
+        }
 
         /// <summary>
         /// Optional override to create listeners (like tcp, http) for this service instance.

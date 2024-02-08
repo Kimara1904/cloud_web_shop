@@ -41,6 +41,8 @@
     <ProjectReference Include="..\Client\Client.csproj">
       <ServiceLaunchUrl>http://localhost:{ServicePort}/</ServiceLaunchUrl>
     </ProjectReference>
+    <ProjectReference Include="..\PubSubBroker\PubSubBroker.csproj" />
+    <ProjectReference Include="..\TransactionCoordinator\TransactionCoordinator.csproj" />
     <ProjectReference Include="..\UserService\UserService.csproj" />
     <ProjectReference Include="..\Validator\Validator.csproj" />
   </ItemGroup>

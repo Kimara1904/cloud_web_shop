@@ -19,21 +19,6 @@ namespace Validator
             : base(context)
         { }
 
-        public async Task<string> AddInChartValidator(int id, int amount)
-        {
-            if (id <= 0)
-            {
-                return "Id must be greather than 0";
-            }
-
-            if (amount <= 0)
-            {
-                return "Amount must be greather than 0";
-            }
-
-            return "Everything is okay";
-        }
-
         public async Task<Tuple<string, List<Article>?>> ArticleViewValidator(UserDTO user, string category)
         {
             if (user == null)
@@ -76,19 +61,92 @@ namespace Validator
             }
         }
 
-        public Task ChartViewValidator()
+        public async Task<Tuple<string, List<Chart>?>> ChartViewValidator(long buyerId)
         {
-            throw new NotImplementedException();
-        }
-
-        public async Task<string> CheckoutValidator(int id)
-        {
-            if (id <= 0)
+            if (buyerId <= 0)
             {
-                return "Id must be greather than 0";
+                return new Tuple<string, List<Chart>?>("User id must be greather than 0", null);
             }
 
-            return "Everything is okay";
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/ChartService");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            IChartOperations proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<IChartOperations>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var result = await proxy.GetCharts(buyerId);
+                return new Tuple<string, List<Chart>?>("Everything is okay", result);
+            }
+            catch (Exception ex)
+            {
+                return new Tuple<string, List<Chart>?>("Error in communication with service " + ex.Message, null);
+            }
+        }
+
+        public async Task<string> CheckoutValidator(Chart chart)
+        {
+            if (chart == null)
+            {
+                return "Chart is required";
+            }
+
+            if (chart.Items.Count == 0)
+            {
+                return "Chart can't be empty";
+            }
+
+            var fabricClient = new FabricClient();
+            var serviceUri = new Uri("fabric:/Web-Shop/TransactionCoordinator");
+
+            var partitionList = await fabricClient.QueryManager.GetPartitionListAsync(serviceUri);
+            ITransactionCoordinator proxy = null!;
+
+            foreach (var partition in partitionList)
+            {
+                var partitionKey = partition.PartitionInformation as Int64RangePartitionInformation;
+
+                if (partitionKey != null)
+                {
+                    var servicePartitionKey = new ServicePartitionKey(partitionKey.LowKey);
+
+                    proxy = ServiceProxy.Create<ITransactionCoordinator>(serviceUri, servicePartitionKey);
+                    break;
+                }
+            }
+
+            try
+            {
+                var prepare = await proxy.Prepare(chart.Items);
+
+                if (prepare.Item1)
+                {
+                    return await proxy.Commit(chart);
+                }
+                else
+                {
+                    return prepare.Item2;
+                }
+            }
+            catch (Exception ex)
+            {
+                await proxy.RollBack();
+                return "Error in communication with service " + ex.Message;
+            }
         }
 
         public async Task<Tuple<string, UserDTO?>> LoginValidator(string username, string password)
@@ -280,15 +338,6 @@ namespace Validator
             }
         }
 
-        public async Task<string> RemoveFromChartValidator(int id)
-        {
-            if (id <= 0)
-            {
-                return "Id must be greather than 0";
-            }
-
-            return "Everything is okay";
-        }
 
         /// <summary>
         /// Optional override to create listeners (e.g., TCP, HTTP) for this service replica to handle client or user requests.

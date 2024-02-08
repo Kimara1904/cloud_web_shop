@@ -4,13 +4,14 @@
 @{
 }
 @using Common.Models
+@model List<Chart>
 
 <h1>Chart</h1>
 
 <a href="@Url.Action("Index", "Article")">Articles</a>
 
 <p>Address: @ViewBag.Chart.Address</p>
-<p>Total Price: @ViewBag.Chart.TotalPrice</p>
+<p>Total Price: @Math.Round(ViewBag.Chart.TotalPrice)</p>
 
 <p>Items: </p>
 
@@ -59,3 +60,109 @@
     </tbody>
 </table>
 
+<div>
+    <label for="paymentSelector">Select Payment Method:</label>
+    @Html.DropDownList("paymentSelector", new SelectList(new[]
+    {
+        new SelectListItem { Text = "Pay with PayPal", Value = "paypal" },
+        new SelectListItem { Text = "Pay with Checkout", Value = "checkout" }
+    }, "Value", "Text", ViewBag.SelectedPayment), new { id = "paymentSelector" })
+</div>
+
+
+@if (ViewBag.SelectedPayment == "paypal")
+{
+    <div id="paypal-button-container"></div>
+}
+else
+{
+    @using (Html.BeginForm("Checkout", "Chart", FormMethod.Get))
+    {
+        <button type="submit">Checkout</button>
+    }
+}
+
+<p>@ViewBag.Error</p>
+<p>@ViewBag.ErrorView</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Address</th>
+            <th>Total Price</th>
+            <th>Items</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Count != 0)
+        {
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Id</td>
+                    <td>@item.Address</td>
+                    <td>@Math.Round(item.TotalPrice, 2)</td>
+                    <td>
+                        @foreach (var article in item.Items)
+                        {
+                            <p>Id: @article.ArticleId Name: @article.ArticleName Price: @article.ArticlePrice Amount: @article.Amount</p>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="4">"There is no chart"</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        let paypal_buttons = paypal.Buttons({
+            createOrder() {
+                return fetch("@Url.Action("CreateOrder", "Chart")", {
+                    method: "POST"
+                })
+                    .then((response) => response.json())
+                    .then((order) => order.id);
+            },
+
+            onApprove(data) {
+                return fetch("@Url.Action("CompleteOrder", "Chart")", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        orderID: data.orderID
+                    })
+                })
+                    .then((response) => response.json())
+                    .then((details) => {
+                        if (details === 'success') {
+                            window.location.href = '/Chart/Checkout';
+                        }
+                        else {
+
+                        }
+                    });
+            },
+
+            onError(err) {
+            }
+        });
+        paypal_buttons.render('#paypal-button-container');
+
+        $(function () {
+            $('#paymentSelector').change(function () {
+                var selectedPayment = $(this).val();
+                window.location.href = '@Url.Action("Index", "Chart")' + '?payment=' + selectedPayment;
+            });
+        });
+    </script>
+}

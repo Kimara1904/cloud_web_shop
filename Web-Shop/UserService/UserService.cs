@@ -117,7 +117,7 @@ namespace UserService
             };
 
             var userIdHelper = new UserData(newUser);
-
+            newUser.Id = userIdHelper.Id;
             try
             {
                 await userDictionary.AddOrUpdateAsync(transaction, userIdHelper.Id, newUser, (k, v) => newUser);

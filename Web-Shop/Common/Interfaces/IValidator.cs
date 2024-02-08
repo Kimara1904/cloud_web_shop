@@ -17,12 +17,8 @@ namespace Common.Interfaces
         [OperationContract]
         Task<Tuple<string, List<Article>?>> ArticleViewValidator(UserDTO user, string category);
         [OperationContract]
-        Task ChartViewValidator();
+        Task<Tuple<string, List<Chart>?>> ChartViewValidator(long buyerId);
         [OperationContract]
-        Task<string> AddInChartValidator(int id, int amount);
-        [OperationContract]
-        Task<string> RemoveFromChartValidator(int id);
-        [OperationContract]
-        Task<string> CheckoutValidator(int id);
+        Task<string> CheckoutValidator(Chart chart);
     }
 }

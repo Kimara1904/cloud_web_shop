@@ -1,12 +1,14 @@
 using Azure.Data.Tables;
 using Azure.Data.Tables.Models;
 using Common.Interfaces;
+using Common.Messages;
 using Common.Models;
 using Common.Repository;
 using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Remoting.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
+using SoCreate.ServiceFabric.PubSub;
 using System.Fabric;
 
 namespace ChartService
@@ -83,7 +85,6 @@ namespace ChartService
             TableItem chartTableItem = await tableServiceClient.CreateTableIfNotExistsAsync("Chart");
             TableClient chartClient = tableServiceClient.GetTableClient("Chart");
 
-            TableItem chartItemTableItem = await tableServiceClient.CreateTableIfNotExistsAsync("ChartItem");
             TableClient chartItemClient = tableServiceClient.GetTableClient("ChartItem");
 
             var chartOperationData = new DataOperations<ChartData>(chartClient);
@@ -99,7 +100,7 @@ namespace ChartService
             {
                 var chart = chartEnumerator.Current;
                 var chartData = new ChartData(chart.Value);
-                if (!await chartOperationData.IsThere(chartData.Id.ToString(), "ChartItem"))
+                if (!await chartOperationData.IsThere(chartData.Id.ToString(), "Chart"))
                 {
                     await chartOperationData.AddAsync(chartData);
 
@@ -119,11 +120,14 @@ namespace ChartService
             using var transaction = stateManager.CreateTransaction();
 
             var chartIdHelper = new ChartData(newChart);
+            newChart.Id = chartIdHelper.Id;
             try
             {
                 await chartDictionary.AddOrUpdateAsync(transaction, chartIdHelper.Id, newChart, (k, v) => newChart);
                 await transaction.CommitAsync();
-                return "Successfully created new user";
+                var brokerClient = new BrokerClient();
+                _ = brokerClient.PublishMessageAsync(new PubMessage { Content = "Hello PubSub World!" });
+                return "Successfully check out";
             }
             catch (Exception ex)
             {
